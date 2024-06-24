@@ -2,7 +2,7 @@ import pandas as pd
 import multiprocessing as mp
 import time
 import matplotlib.pyplot as plt
-
+from datetime import datetime
 
 def read_csv():
     df = pd.read_excel('cdi.xlsx')
@@ -12,8 +12,28 @@ def read_csv():
 #     print(read_csv())
 
 
+def is_valid_date_format(date_str):
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+        return True
+    except ValueError:
+        return False
+
+
+def valid_date_min_max(start_date: str, end_date: str):
+    data_min = '2000-01-03'
+    data_max = '2024-02-29'
+    if not (is_valid_date_format(start_date) and is_valid_date_format(end_date)):
+        raise ValueError("As datas devem estar no formato yyyy-mm-dd")
+    if not (data_min <= start_date <= data_max) or not (data_min <= end_date <= data_max):
+        raise ValueError(f"As datas devem estar entre {data_min} e {data_max}")
+    if start_date > end_date:
+        raise ValueError("A data de início deve ser anterior ou igual à data de fim")
+
+
 def cdi_acumulado(start_date: str, end_date: str) -> pd.Series:
     df = read_csv()
+    valid_date_min_max(start_date, end_date)
     df = df.loc[(df['data'] >= start_date) & (df['data'] <= end_date)]
     df.loc[0, 'retorno'] = 0
     df['cdi_acumulado'] = ((1 + df['retorno']).cumprod() - 1) * 100
@@ -31,6 +51,7 @@ def cdi_acumulado(start_date: str, end_date: str) -> pd.Series:
 
 def cdi_anual(start_date: str, end_date: str) -> pd.Series:
     df = read_csv()
+    valid_date_min_max(start_date, end_date)
     df = df.loc[(df['data'] >= start_date) & (df['data'] <= end_date)]
     df['cdi_anual'] = (((1 + df['retorno']) ** 252) - 1) * 100
     df['cdi_anual'] = df['cdi_anual'].round(2)
@@ -45,6 +66,7 @@ def cdi_anual(start_date: str, end_date: str) -> pd.Series:
 
 
 def media_selic(start_date: str, end_date: str) -> pd.Series:
+    valid_date_min_max(start_date, end_date)
     df = cdi_anual(start_date, end_date)
     df.index = pd.to_datetime(df.index)
     df['year'] = df.index.year
